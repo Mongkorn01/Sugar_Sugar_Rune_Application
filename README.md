@@ -1,2 +1,2 @@
-# Sugar-Sugar-Rune-Application
-A program that detects a ✌️ hand gesture and displays the user’s heart location.
+# Sugar_Sugar_Rune_Application
+Hand Keypoint Detection - detects a ✌️ hand gesture and displays the user’s heart location.
