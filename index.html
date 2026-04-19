@@ -1,112 +1,191 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-
-  <!-- Page title -->
-  <title>2D ✌️ detection (MediaPipe JS)</title>
+  <title>Heart Vision | 2D Hand Detection</title>
 
   <style>
-    /* Canvas size variables */
-    :root{--w:720px;--h:540px}
-
-    /* Basic layout */
-    body {
-      font-family: Arial, Helvetica, sans-serif;
-      background:#111;
-      color:#eee;
-      display:flex;
-      align-items:flex-start;
-      gap:16px;
-      padding:12px;
+    :root {
+      --w: 720px;
+      --h: 540px;
+      --accent: #ff4bb4;
+      --bg: #0f172a;
+      --glass: rgba(255, 255, 255, 0.05);
+      --glass-border: rgba(255, 255, 255, 0.1);
     }
 
-    #container { position:relative; width:var(--w); }
+    body {
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(circle at top right, #1e293b, #0f172a);
+      color: #f8fafc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    #app-wrapper {
+      display: flex;
+      gap: 24px;
+      padding: 24px;
+      background: var(--glass);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    #container { 
+      position: relative; 
+      width: var(--w); 
+      height: var(--h);
+      background: #000;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    }
 
     /* Video is hidden; canvas is used for rendering */
     video, canvas {
-      width:var(--w);
-      height:var(--h);
-      border-radius:8px;
-      background:#222;
+      width: var(--w);
+      height: var(--h);
+      display: block;
+    }
+    video { display: none; }
+
+    /* Right Side Panel */
+    #sidebar {
+      display: flex;
+      flex-direction: column;
+      width: 280px;
+      gap: 20px;
     }
 
-    video { display:none; }
+    h1 {
+      font-size: 1.5rem;
+      margin: 0;
+      background: linear-gradient(to right, #ff4b2b, #ff416c);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: 800;
+    }
 
     /* Mode buttons */
-    #controls { display:flex; gap:8px; margin-top:8px; }
-
-    button {
-      padding:8px 12px;
-      border-radius:6px;
-      border:none;
-      cursor:pointer;
-      background:#1f6feb;
-      color:white;
+    #controls { 
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
     }
 
-    button.active { background:#0ea5a4; }
+    button {
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--glass-border);
+      cursor: pointer;
+      background: rgba(255,255,255,0.05);
+      color: white;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
 
-    #info {
-      margin-left:12px;
-      max-width:360px;
-      font-size:13px;
-      line-height:1.4;
+    button:hover {
+      background: rgba(255,255,255,0.15);
+      transform: translateY(-2px);
+    }
+
+    button:active { transform: translateY(0); }
+
+    button.active { 
+      background: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 15px rgba(255, 75, 180, 0.4);
+    }
+
+    #btnCapture { background: #10b981; border-color: #10b981; grid-column: span 2; }
+    #btnReset { background: #64748b; border-color: #64748b; }
+
+    .status-panel {
+      background: rgba(0,0,0,0.2);
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px solid var(--glass-border);
     }
 
     .debug {
-      font-family:monospace;
-      font-size:12px;
-      background:rgba(0,0,0,0.36);
-      padding:6px;
-      border-radius:6px;
+      font-family: 'Fira Code', monospace;
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 8px;
+      word-break: break-all;
+    }
+
+    #info {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+
+    #info b { color: var(--accent); }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #1e293b;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
     }
   </style>
 </head>
 
 <body>
-  <div id="container">
-
-    <!-- Webcam stream (hidden, used as input for MediaPipe) -->
-    <video id="video" autoplay playsinline></video>
-
-    <!-- Main rendering surface -->
-    <canvas id="canvas"></canvas>
-
-    <!-- Mode controls -->
-    <div id="controls">
-      <button id="btnHand" class="active">Hand</button>
-      <button id="btnCapture">Capture</button>
-      <button id="btnReset">Reset</button>
-      <label class="debug" id="modeLabel">Mode: Hand</label>
-      
+  <div id="app-wrapper">
+    <div id="container">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
     </div>
 
-    <!-- Debug output -->
-    <div style="margin-top:8px;">
-      <div class="debug" id="debugReadout">Waiting for camera...</div>
+    <div id="sidebar">
+      <div>
+        <h1>Heart Vision</h1>
+        <p style="font-size: 12px; color: #64748b;">MediaPipe 2D Pose & Gesture</p>
+      </div>
+
+      <div class="status-panel">
+        <span class="badge">System Status</span>
+        <div class="debug" id="debugReadout">Initializing camera...</div>
+        <div class="debug" id="modeLabel" style="color: #38bdf8;">Mode: Hand</div>
+      </div>
+
+      <div id="controls">
+        <button id="btnHand" class="active">✌️ Gesture</button>
+        <button id="btnReset">🔄 Reset</button>
+        <button id="btnCapture">📸 Capture Screenshot</button>
+      </div>
+
+      <div id="info">
+        <span class="badge">How to play</span>
+        <p>Make a <b>Peace Sign (✌️)</b> to trigger the floating heart sticker. The sticker will track your <b>chest position</b> using pose detection.</p>
+      </div>
     </div>
   </div>
 
-  <!-- Help text -->
-  <div id="info">
-    <h3>Controls</h3>
-    <ul>
-      <li><b>Hand - ✌️</b>: Heart</li>
-      <li><b>Sticker - Heart's location</b></li>
-    </ul>
-  </div>
-
-  <!-- MediaPipe libraries -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
 
   <script>
   (async function(){
-
     /* ------------------------------
-       Canvas & DOM setup
+        Canvas & DOM setup
     --------------------------------*/
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
@@ -122,31 +201,22 @@
     const debugReadout = document.getElementById('debugReadout');
 
     /* Image Setup*/
-        /* Randomize color pool */
     const colors = ['red', 'pink', 'orange'];
-
     const img = new Image();
     let glowColor = null;
 
     function setRandomColor(){
       const randomColor = colors[Math.floor(Math.random() * colors.length)];
-      if (randomColor == 'red')
-      {
+      if (randomColor == 'red') {
         glowColor = "hsl(0, 70%, 80%)"; 
         img.src = 'heart_red.png';
-      }
-      else if (randomColor == 'pink')
-      {
+      } else if (randomColor == 'pink') {
         glowColor = "hsl(330, 70%, 80%)";
         img.src = 'heart_pink.png';
-      }
-      else if (randomColor == 'orange')
-      {
+      } else if (randomColor == 'orange') {
         glowColor = "hsl(25, 80%, 80%)";
         img.src = 'heart_orange.png';
-      }
-      else
-      {
+      } else {
         glowColor = null;
         img.src = 'heart.png';
       } 
@@ -154,16 +224,13 @@
     setRandomColor();
 
     let imageLoaded = false;
-    let showImage = false;     // controls hide / unhide
-
-    /* Current interaction mode */
+    let showImage = false;
     let mode = 'hand';
 
-    /* Switch between hand / face mode */
     function setMode(m){
       mode = m;
       btnHand.classList.toggle('active', m === 'hand');
-      btnReset.classList.add('deactive');
+      modeLabel.textContent = `Mode: ${m.charAt(0).toUpperCase() + m.slice(1)}`;
     }
 
     btnHand.onclick = () => setMode('hand');
@@ -173,45 +240,28 @@
     function resetImage() {
       showImage = false;
       setRandomColor();
-      btnReset.classList.remove('active');
     }
 
-    /* ------------------------------
-       Transform state of rectangle
-    --------------------------------*/
     let transform = {
-      tx: canvas.width / 2,   // X position
-      ty: canvas.height / 2,  // Y position
-      scale: 1.0,             // Scale factor
-      angle: 0                // Rotation (radians)
+      tx: canvas.width / 2,
+      ty: canvas.height / 2,
+      scale: 1.0,
+      angle: 0
     };
 
-    /* Base rectangle size */
     const baseRect = { w: 200, h: 200 };
 
-    /* Distance helper */
     function dist(a, b){
       const dx = a.x - b.x;
       const dy = a.y - b.y;
       return Math.sqrt(dx*dx + dy*dy);
     }
 
-    /* Compute average position of points */
-    function centroid(points){
-      let x = 0, y = 0;
-      for (const p of points){
-        x += p.x;
-        y += p.y;
-      }
-      return { x: x / points.length, y: y / points.length };
-    }
-
     /* ------------------------------
-       MediaPipe Hands
+        MediaPipe Setup
     --------------------------------*/
     const hands = new Hands({
-      locateFile: file =>
-        `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
     });
 
     hands.setOptions({
@@ -222,8 +272,7 @@
     });
 
     const pose = new Pose({
-      locateFile: file =>
-        `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
     });
 
     pose.setOptions({
@@ -233,112 +282,98 @@
       minTrackingConfidence: 0.6
     });
 
+    img.onload = () => { imageLoaded = true; };
 
-    img.onload = () => {
-      imageLoaded = true;
-    };
-
-    /* ------------------------------
-       Camera setup
-    --------------------------------*/
     async function startCamera(){
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 1280, height: 720, facingMode: "user" },
-        audio: false
-      });
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1280, height: 720, facingMode: "user" },
+          audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+        debugReadout.textContent = "Camera Active";
 
-      video.srcObject = stream;
-      await video.play();
+        let isWarmingUp = true;
 
-      /* MediaPipe Camera helper */
-    const camera = new Camera(video, {
-      onFrame: async () => {
-        await hands.send({ image: video });
-        await pose.send({ image: video });
+        const camera = new Camera(video, {
+          onFrame: async () => {
+            if (isWarmingUp) {
+              // Run them sequentially only for the very first frame to safely init WASM
+              await hands.send({ image: video });
+              await pose.send({ image: video });
+              isWarmingUp = false;
+            } else {
+              // Now that they are initialized, run in parallel for performance
+              await Promise.all([
+                hands.send({ image: video }),
+                pose.send({ image: video })
+              ]);
+            }
+          }
+        });
+        camera.start();
+      } catch (err) {
+        debugReadout.textContent = "Error: " + err.message;
       }
-    });
-
-      camera.start();
     }
 
     /* ------------------------------
-       Pose results handler
+        Pose results
     --------------------------------*/
     let chestCanvas = null;
     let shoulderDistPx = null;
     let poseLm = null;
 
     function getChestPosition(poseLm) {
-      const left = poseLm[11];  // left shoulder
-      const right = poseLm[12]; // right shoulder
-
-      return {
-        x: (left.x + right.x) / 2,
-        y: (left.y + right.y) / 2
-      };
+      const left = poseLm[11];
+      const right = poseLm[12];
+      return { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2 };
     }
 
     function poseToCanvas(p) {
-      return {
-        x: p.x * canvas.width,
-        y: p.y * canvas.height
-      };
+      return { x: p.x * canvas.width, y: p.y * canvas.height };
     }
 
     function getShoulderDistance(poseLm) {
       const left = poseToCanvas(poseLm[11]);
       const right = poseToCanvas(poseLm[12]);
-
       return Math.hypot(left.x - right.x, left.y - right.y);
     }
 
     pose.onResults(results => {
       if (!results.poseLandmarks) return;
-
       poseLm = results.poseLandmarks;
-
       const chestNorm = getChestPosition(poseLm);
       chestCanvas = poseToCanvas(chestNorm);
-
       shoulderDistPx = getShoulderDistance(poseLm);
     });
 
-
     /* ------------------------------
-       Hand results handler
+        Hand results
     --------------------------------*/
-    function isOutOfFrame(p, margin = 0.05) {
-      return (
-        p.x < -margin ||
-        p.x > 1 + margin ||
-        p.y < -margin ||
-        p.y > 1 + margin
-      );
-    }
-
     function isHandOutOfFrame(handLm, margin = 0.05) {
-      // wrist + fingertips (stable points)
       const critical = [8, 12];
-      return critical.some(i => isOutOfFrame(handLm[i], margin));
+      return critical.some(i => {
+        const p = handLm[i];
+        return p.x < -margin || p.x > 1 + margin || p.y < -margin || p.y > 1 + margin;
+      });
     }
 
     let lastFalseTime = 0;
-    const FALSE_COOLDOWN = 1000; // ms
-    const SPREAD_ON  = 0.27;
+    const FALSE_COOLDOWN = 1000;
+    const SPREAD_ON = 0.27;
     const SPREAD_OFF = 0.22;
-
-    const HOLD_ON  = 0.18;
+    const HOLD_ON = 0.18;
     const HOLD_OFF = 0.23;
     let isTarget = false;
 
     function updateGesture(isTarget) {
-      const now = performance.now();; 
-
+      const now = performance.now();
       if (isTarget){  
         showImage = true;
         return;
       }
-      // Gesture is false → only accept it every false cooldown
       if (!isTarget && now - lastFalseTime >= FALSE_COOLDOWN) {
         resetImage();
         showImage = false;
@@ -346,141 +381,91 @@
       }
     }
 
-
     hands.onResults(results => {
-
-      drawFrame(results, null);
-
+      drawFrame(results);
       if (mode !== 'hand') return;
 
       const handsLm = results.multiHandLandmarks;
       if (!handsLm || handsLm.length === 0) {
         showImage = false;
+        debugReadout.textContent = "Searching for hand...";
         return;
       }
 
       const lm = handsLm[0];
-
-      // Out-of-frame check
       if (isHandOutOfFrame(lm)) {
-        lastPinchDist = null;
-        lastFistCenter = null;
         showImage = false;
         debugReadout.textContent = "Hand out of frame";
         return;
       }
+      debugReadout.textContent = "Hand detected";
 
-      /* Convert normalized landmark to canvas space */
-      const toCanvas = p => ({
-        x: p.x * canvas.width,
-        y: p.y * canvas.height
-      });
-
-      /* Pinch detection */
+      const toCanvas = p => ({ x: p.x * canvas.width, y: p.y * canvas.height });
       const thumb = toCanvas(lm[4]);
       const index = toCanvas(lm[8]);
       const middle = toCanvas(lm[12]);
-      const ring = toCanvas(lm[16])
-      const pinky = toCanvas(lm[20])
-
+      const ring = toCanvas(lm[16]);
+      const pinky = toCanvas(lm[20]);
       const wrist = toCanvas(lm[0]);
       const handSize = dist(wrist, middle) || 1;
       
-      /* Heart detection */
       if (!showImage) {
-        isTarget =
-          dist(middle, index)/handSize > SPREAD_ON &&
-          dist(index, thumb)/handSize > SPREAD_ON &&
-          dist(thumb, ring)/handSize < HOLD_ON &&
-          dist(pinky, ring)/handSize < HOLD_ON;
+        isTarget = dist(middle, index)/handSize > SPREAD_ON &&
+                   dist(index, thumb)/handSize > SPREAD_ON &&
+                   dist(thumb, ring)/handSize < HOLD_ON &&
+                   dist(pinky, ring)/handSize < HOLD_ON;
       } else {
-        isTarget =
-          dist(middle, index)/handSize > SPREAD_OFF &&
-          dist(index, thumb)/handSize > SPREAD_OFF &&
-          dist(thumb, ring)/handSize < HOLD_OFF &&
-          dist(pinky, ring)/handSize < HOLD_OFF;
+        isTarget = dist(middle, index)/handSize > SPREAD_OFF &&
+                   dist(index, thumb)/handSize > SPREAD_OFF &&
+                   dist(thumb, ring)/handSize < HOLD_OFF &&
+                   dist(pinky, ring)/handSize < HOLD_OFF;
       }
       updateGesture(isTarget);
 
-      // ---------------------------------
-      /*  Combine with body mesh translation */
-      // ----------------------------------
       if (showImage && chestCanvas && shoulderDistPx) {
-
-        // Tune multiplier to taste (0(big)-360(small))
         transform.scale = shoulderDistPx / 320;
         transform.tx = chestCanvas.x - 50;
-        transform.ty = chestCanvas.y - 50; // lift heart above chest
+        transform.ty = chestCanvas.y - 50;
       }
-
     });
 
-    /* ------------------------------
-       Capture screen button
-    --------------------------------*/
     function captureImage() {
-      // Convert canvas to image
       const imageURL = canvas.toDataURL("image/png");
-
-      // Create temporary download link
       const link = document.createElement("a");
       link.href = imageURL;
-
-      // Optional: auto filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       link.download = `heart_capture_${timestamp}.png`;
-
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     }
 
-    
-    /* ------------------------------
-       Drawing function
-    --------------------------------*/
-    function drawFrame(handResults, faceResults){
-
+    function drawFrame(handResults){
       ctx.clearRect(0,0,canvas.width,canvas.height);
-
-      /* Draw camera frame */
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      /* Draw transformed rectangle */
-      ctx.save();
-      ctx.translate(transform.tx, transform.ty);
-      ctx.rotate(transform.angle);
-      ctx.scale(transform.scale, transform.scale);
-
-      ctx.fillStyle = "rgba(255,165,0,0.85)";
-      ctx.strokeStyle = "rgba(0,0,0,0.7)";
-      ctx.lineWidth = 4;
-
-    /* ------------------------------
-       Show heart
-    --------------------------------*/
       if (showImage && imageLoaded) {
-
+        ctx.save();
+        ctx.translate(transform.tx, transform.ty);
+        ctx.rotate(transform.angle);
+        ctx.scale(transform.scale, transform.scale);
+        
         if (glowColor) {
-          ctx.filter = `drop-shadow(0 0 2em ${glowColor})`;
+          ctx.filter = `drop-shadow(0 0 20px ${glowColor})`;
         }
         
         ctx.drawImage(
           img,
-          -baseRect.w / 2 + 180,  // X position on canvas (destination X)
-          -baseRect.h / 2 + 180, // Y position on canvas (destination Y)
-          baseRect.w, // width
-          baseRect.h // height
+          -baseRect.w / 2 + 180, 
+          -baseRect.h / 2 + 180,
+          baseRect.w,
+          baseRect.h
         );
-      } 
-
-      ctx.filter = "none";
-      ctx.restore();
+        ctx.restore();
+      }
     }
 
-    /* Start everything */
     await startCamera();
-
   })();
   </script>
 </body>
